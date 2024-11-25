@@ -48,7 +48,7 @@ fn save_to_wav(audio_buffer: &Vec<f32>, sample_rate: u32, num_channels: u16, pat
 fn main() {
     let (t_size, _) = crossterm::terminal::size().unwrap();
     let user_input_thread = thread::spawn(|| {
-        print!("Nombre del archivo (sin extension): ");
+        print!("File name (no extension): ");
         io::stdout().flush().unwrap(); // Flush to ensure prompt is printed immediately
 
         let mut filename = String::new();
@@ -58,8 +58,20 @@ fn main() {
         filename
     });
 
-    // Wait for the user input thread to finish and get the filename
     let filename = user_input_thread.join().unwrap();
+
+    let time_input_thread = thread::spawn(|| {
+        print!("Duration of recording (seconds): ");
+        io::stdout().flush().unwrap(); // Flush to ensure prompt is printed immediately
+
+        let mut secs = String::new();
+        io::stdin().read_line(&mut secs).unwrap();
+        secs = secs.trim().to_string(); // Remove newline from the filename
+
+        secs
+    });
+
+    let secs: u64 = time_input_thread.join().unwrap().parse().unwrap();
 
     let path: String = format!("/home/lvx/Uni/clases_aud/{}.wav", filename);
 
@@ -111,8 +123,8 @@ fn main() {
         .unwrap();
 
     stream.play().unwrap();
-    println!("Recording audio for an hour...");
-    std::thread::sleep(Duration::from_secs(3600));
+    println!("Recording...");
+    std::thread::sleep(Duration::from_secs(secs));
 
     let record = audio_buffer.lock().unwrap();
     print!("{}\r", " ".repeat(t_size as usize));
