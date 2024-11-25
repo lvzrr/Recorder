@@ -62,7 +62,6 @@ fn main() {
     let filename = user_input_thread.join().unwrap();
 
     let path: String = format!("/home/lvx/Uni/clases_aud/{}.wav", filename);
-    let path: String = format!("/home/lvx/Uni/clases_aud/{}.wav", filename);
 
     let def_input = default_host().default_input_device().unwrap();
     let config: StreamConfig = StreamConfig::from(def_input.default_input_config().unwrap());
