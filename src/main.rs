@@ -6,7 +6,11 @@ use cpal::{
 use crossterm;
 use hound;
 use std::{
+    fs,
     io::{self, Write},
+    path::PathBuf,
+    process,
+    str::FromStr,
     sync::{Arc, Mutex},
     thread,
     time::Duration,
@@ -91,20 +95,23 @@ fn main() {
     let buffer_clone = Arc::clone(&audio_buffer);
     let data_callback = move |data: &[f32], _: &cpal::InputCallbackInfo| {
         let mut buffer = buffer_clone.lock().unwrap();
-        buffer.extend_from_slice(data);
+        let amplification_factor = 1.5;
+        buffer.extend(data.iter().map(|&sample| {
+            let amplified_sample = sample * amplification_factor;
+            // Clamp to avoid exceeding the range of f32
+            amplified_sample.clamp(-1.0, 1.0)
+        }));
+
         let bar_levels = "▁▂▃▄▅▆▇▉";
         for batch in data.chunks(t_size as usize) {
-            let mut bar_line = String::new(); // Will store the line of bars for printing
+            let mut bar_line = String::new();
 
-            // For each sample in the batch
             for sample in batch {
-                // Scale the sample value to the bar range (0–7) based on its absolute value
-                let scaled_sample = (sample.abs() * 7.0) as usize; // Normalize to the bar range
-                let bar = bar_levels.chars().nth(scaled_sample).unwrap_or('▁'); // Get the corresponding bar
+                let scaled_sample = (sample.abs() * 7.0) as usize;
+                let bar = bar_levels.chars().nth(scaled_sample).unwrap_or('▁');
                 bar_line.push(bar);
             }
 
-            // Print the full line of bars
             print!("{}\r", bar_line);
         }
     };
@@ -129,5 +136,29 @@ fn main() {
     let record = audio_buffer.lock().unwrap();
     print!("{}\r", " ".repeat(t_size as usize));
     println!("Recorded {} samples.", &record.len());
-    save_to_wav(&record, sample_rate.0, num_channels, path);
+    save_to_wav(&record, sample_rate.0, num_channels, path.clone());
+
+    //println!("Initializing whisper transcript");
+    //
+    //let command = format!("whisper {} --model small --language Spanish", path);
+    //let transcript = process::Command::new("sh")
+    //    .arg("-c")
+    //    .arg(command)
+    //    .output()
+    //    .expect("Transcription failed");
+    //
+    //if !transcript.status.success() {
+    //    eprintln!(
+    //        "Whisper transcription error: {}",
+    //        String::from_utf8_lossy(&transcript.stderr)
+    //    );
+    //    process::exit(1);
+    //}
+    //
+    //let out = String::from_utf8_lossy(&transcript.stdout);
+    //println!("{}", out);
+    //
+    //let transcript_path = format!("/home/lvx/Uni/clases_aud/{}_transcript.txt", filename);
+    //fs::write(&transcript_path, &transcript.stdout).expect("Failed to save transcript file");
+    //println!("Transcript saved to {}", transcript_path);
 }
